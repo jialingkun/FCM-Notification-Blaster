@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Berita Jatim</title>
+	<!-- Latest compiled and minified CSS -->
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+
+	<!-- jQuery library -->
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+	<!-- Latest compiled JavaScript -->
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script> 
+
+
+</head>
+<body>
+	<div class="container">
+		<div class="col-sm-6">
+			<h2>Notification Blaster</h2>
+			<form action="">
+				<div class="form-group">
+					<label for="title">Judul:</label>
+					<input type="text" class="form-control" id="title">
+				</div>
+				<div class="form-group">
+					<label for="body">Pesan:</label>
+					<textarea name="" id="body" class="form-control" cols="30" rows="10"></textarea>
+				</div>
+				<div class="form-group">
+					<label for="link">Link:</label>
+					<input type="text" class="form-control" id="link">
+				</div>
+				<button type="button" id="kirim" class="btn btn-default">Kirim</button>
+
+			</form>
+		</div>
+		
+		<div class="col-sm-6">
+		<h2>History Notifikasi</h2>
+		<div class="notification">
+			<div class="list-group" id="results">
+				<div id="loading">Loading item, please wait ...</div>
+			</div>
+		</div>
+		</div>
+
+	</div>
+
+</body>
+
+<script src="https://www.gstatic.com/firebasejs/5.7.3/firebase.js"></script>
+<script>
+  // Initialize Firebase
+  var config = {
+  	apiKey: "--",
+  	authDomain: "--",
+  	databaseURL: "--",
+  	projectId: "--",
+  	storageBucket: "--",
+  	messagingSenderId: "--"
+  };
+  firebase.initializeApp(config);
+
+  // Get a reference to the database service
+  var database = firebase.database();
+
+  function writeNewPost(date, title, body, link) {
+  	// A post entry.
+  	var postData = {
+  		date: date,
+  		title: title,
+  		body: body,
+  		link: link
+  	};
+
+  	// Get a key for a new Post.
+  	var newPostKey = database.ref().child('Notification').push().key;
+
+  	// Write the new post's data simultaneously in the posts list and the user's post list.
+  	var updates = {};
+  	updates['/Notification/' + newPostKey] = postData;
+
+  	return firebase.database().ref().update(updates);
+  }
+
+  function getDate(){
+  	var today = new Date();
+  	var dd = today.getDate();
+  	var mm = today.getMonth() + 1; //January is 0!
+  	var yyyy = today.getFullYear();
+
+  	if (dd < 10) {
+  		dd = '0' + dd;
+  	}
+
+  	if (mm < 10) {
+  		mm = '0' + mm;
+  	}
+
+  	today = dd + '/' + mm + '/' + yyyy;
+  	return today;
+  }
+
+  $("#kirim").click(function(){
+  	var date = getDate();
+  	var title = $("#title").val();
+  	var body = $("#body").val();
+  	var link = $("#link").val();
+
+  	writeNewPost(date,title,body,link);
+  	$("#kirim").prop("disabled",true);
+  	$("#kirim").html("SEDANG MENGIRIM...");
+
+  	$.ajax({        
+  		type : 'POST',
+  		url : "https://fcm.googleapis.com/fcm/send",
+  		headers : {
+  			Authorization : 'key=' + '--'
+  		},
+  		contentType : 'application/json',
+  		dataType: 'json',
+  		data: JSON.stringify({"to": "/topics/beritajatim", "notification": {"title":title,"body":body}, "data": {"link":link} }),
+  		success : function(response) {
+  			console.log(response);
+  			alert("Berhasil Mengirim Notifikasi");
+  			$("#kirim").prop("disabled",false);
+  			$("#kirim").html("KIRIM");
+  		},
+  		error : function(xhr, status, error) {
+  			console.log(xhr.error);
+  			alert("Gagal Mengirim Notifikasi");
+  			$("#kirim").prop("disabled",false);
+  			$("#kirim").html("KIRIM");                  
+  		}
+  	});
+  });
+
+
+  var notificationRef = firebase.database().ref('Notification');
+  notificationRef.on('child_added', function(snapshot) {
+  	var msg = snapshot.val();
+
+  	var outertag = document.createElement("div");
+
+  	var item = "<div class='list-group-item'><p>"+msg.date+"</p> <p><b>"+msg.title+"</b><br>"+msg.body+" </p> <p><a href='"+msg.link+"'>"+msg.link+"</a></p></div>";
+  	outertag.innerHTML = item;
+  	outertag = outertag.firstChild;
+  	var parent = document.getElementById("results");
+  	parent.insertBefore(outertag, parent.firstChild);
+
+  	document.getElementById("loading").innerHTML = "";
+  });
+
+</script>
+
+</html>
